@@ -7,9 +7,13 @@ on:
       - fix/no-fabricated-success-20261016
 permissions:
   contents: read
+concurrency:
+  group: regression-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

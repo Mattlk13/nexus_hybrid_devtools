@@ -33,3 +33,15 @@ class AuthenticatedAdapterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class JenkinsReadbackTests(unittest.TestCase):
+    def test_create_requires_matching_remote_state(self):
+        from unittest.mock import MagicMock
+        env={'NEXUS_JENKINS_URL':'https://jenkins.example','NEXUS_JENKINS_USER':'tester','NEXUS_JENKINS_TOKEN':'fake'}
+        response=MagicMock();response.__enter__.return_value=response;response.status=201
+        for name,passes in [('fixture',True),('wrong',False)]:
+            with self.subTest(name=name),patch.dict(os.environ,env),patch('nexus_integrations._open',return_value=response),patch('nexus_integrations._json_request',return_value=(200,{'name':name})):
+                if passes: self.assertTrue(provision_jenkins({'name':'fixture','config_xml':'<project/>'})['verified'])
+                else:
+                    with self.assertRaisesRegex(IntegrationError,'verification_failed'):
+                        provision_jenkins({'name':'fixture','config_xml':'<project/>'})

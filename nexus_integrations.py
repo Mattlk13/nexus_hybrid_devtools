@@ -9,6 +9,15 @@ import os
 from urllib import error, parse, request
 
 
+class _NoRedirect(request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise IntegrationError("redirect_rejected")
+
+
+def _open(req, timeout=15):
+    return request.build_opener(_NoRedirect()).open(req, timeout=timeout)
+
+
 class IntegrationError(RuntimeError):
     pass
 
@@ -17,9 +26,17 @@ def _json_request(url, *, method="GET", headers=None, payload=None, timeout=15):
     body = None if payload is None else json.dumps(payload).encode("utf-8")
     req = request.Request(url, data=body, method=method, headers=headers or {})
     try:
-        with request.urlopen(req, timeout=timeout) as response:
-            raw = response.read(1024 * 1024)
-            return response.status, json.loads(raw) if raw else {}
+        with _open(req, timeout=timeout) as response:
+            raw = response.read(1024 * 1024 + 1)
+            if len(raw) > 1024 * 1024:
+                raise IntegrationError("response_too_large")
+            value = json.loads(raw) if raw else {}
+            if not isinstance(value, dict):
+                raise IntegrationError("invalid_response_schema")
+            return response.status, value
+    except error.HTTPError as exc:
+        code = {401: "authentication_failed", 403: "permission_denied", 409: "duplicate_conflict"}.get(exc.code, "remote_http_error")
+        raise IntegrationError(code) from exc
     except (error.URLError, ValueError, TimeoutError) as exc:
         raise IntegrationError("remote_request_failed") from exc
 
@@ -53,7 +70,8 @@ def provision_jenkins(config):
     base = os.getenv("NEXUS_JENKINS_URL", "").rstrip("/")
     user = os.getenv("NEXUS_JENKINS_USER")
     token = os.getenv("NEXUS_JENKINS_TOKEN")
-    if not (base and user and token) or not base.startswith("https://"):
+    parsed = parse.urlsplit(base)
+    if not (base and user and token) or parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         raise IntegrationError("jenkins_credentials_or_https_not_configured")
     name = config.get("name") if isinstance(config, dict) else None
     xml = config.get("config_xml") if isinstance(config, dict) else None
@@ -61,18 +79,12 @@ def provision_jenkins(config):
         raise IntegrationError("jenkins_name_and_config_xml_required")
     auth = base64.b64encode((user + ":" + token).encode()).decode()
     headers = {"Authorization": "Basic " + auth}
-    try:
-        req = request.Request(base + "/crumbIssuer/api/json", headers=headers)
-        with request.urlopen(req, timeout=15) as response:
-            crumb = json.load(response)
-        headers[crumb["crumbRequestField"]] = crumb["crumb"]
-    except (error.URLError, KeyError, ValueError) as exc:
-        raise IntegrationError("jenkins_crumb_unavailable") from exc
+    # Jenkins API-token authentication is exempt from CSRF crumbs.
     target = base + "/createItem?name=" + parse.quote(name, safe="")
     req = request.Request(target, data=xml.encode(), method="POST",
                           headers={**headers, "Content-Type": "application/xml"})
     try:
-        with request.urlopen(req, timeout=15) as response:
+        with _open(req, timeout=15) as response:
             if response.status not in (200, 201, 302):
                 raise IntegrationError("jenkins_creation_unconfirmed")
     except error.URLError as exc:
