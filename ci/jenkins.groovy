@@ -14,15 +14,10 @@ j.setSecurityRealm(realm)
   account.save()
   new File('/var/jenkins_home/'+name+'.token').text = value
 }
-j.setAuthorizationStrategy(new AuthorizationStrategy() {
-  ACL getRootACL() {
-    return new ACL() {
-      boolean hasPermission2(Authentication a, Permission p) {
-        return a.name == 'cert-admin' || (a.name == 'cert-reader' && (p == Jenkins.READ || p == Item.READ))
-      }
-    }
-  }
-  Collection<String> getGroups() { return [] }
-})
+def strategy = new GlobalMatrixAuthorizationStrategy()
+strategy.add(Jenkins.ADMINISTER, 'cert-admin')
+strategy.add(Jenkins.READ, 'cert-reader')
+strategy.add(Item.READ, 'cert-reader')
+j.setAuthorizationStrategy(strategy)
 j.setNumExecutors(0)
 j.save()
