@@ -5,6 +5,7 @@ Decision: **HOLD**. No production deployment, merge, release publication or serv
 ## Resumed certification results
 
 - PASS: 18 local Python tests, including real HTTP socket 401, 403, 409 and timeout/redaction tests. One hosted Sentry gate skips because credentials are absent.
+- PASS: final real Jenkins matrix includes concurrent create convergence and injected lost-create-ack reconciliation without claiming ownership: 3 acceptance tests pass in 40.827s.
 - PASS: real Jenkins 2.580.1 with matrix-auth 3.3, in an ephemeral loopback-only Podman container on MattWorkspace. Authenticated disabled-job creation, duplicate reuse, invalid authentication, read-only permission denial, deletion rollback and repeated rollback disappearance checks pass (1 acceptance test, 72.634s).
 - Implemented: certification-scoped Sentry create/readback, ambiguous-outcome reconciliation without claiming ownership, duplicate reads, identity-bound rollback; exposed through the engine for nexus-cert-* resources. Hosted Sentry acceptance is still BLOCKED. Required configuration: NEXUS_SENTRY_TOKEN, NEXUS_SENTRY_ORG, NEXUS_SENTRY_TEAM, NEXUS_SENTRY_READONLY_TOKEN and NEXUS_SENTRY_LIVE_TESTS=1. Store credentials in an isolated environment, never chat or source.
 - Jenkins loopback HTTP is permitted only with explicit fixture opt-in and literal 127.0.0.1. Remote Jenkins still requires HTTPS. Fixture credentials are generated inside the temporary server and are not printed.

@@ -56,4 +56,32 @@ class RealJenkinsTests(unittest.TestCase):
                 self.assertTrue(jenkins_rollback(receipt)['verified'])
             self.assertTrue(jenkins_rollback(receipt)['duplicate'])
 
+    def test_concurrent_create_converges_on_one_owned_job(self):
+        from concurrent.futures import ThreadPoolExecutor
+        config={'name':'nexus-cert-concurrent','config_xml':'<project><disabled>true</disabled><builders/></project>'}
+        with patch.dict(os.environ,self.env):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results=list(pool.map(lambda _:jenkins_create(config),range(2)))
+            self.assertTrue(all(result['verified'] for result in results))
+            self.assertEqual(sum(result['created'] for result in results),1)
+            owned=next(result for result in results if result['created'])
+            self.assertTrue(jenkins_rollback(owned)['verified'])
+
+    def test_lost_create_ack_reconciles_without_claiming_ownership(self):
+        import nexus_lifecycle
+        original=nexus_lifecycle._open
+        def lose_ack(req,**kwargs):
+            if req.get_method()=='POST' and '/createItem?' in req.full_url:
+                with original(req,**kwargs) as response:
+                    self.assertEqual(response.status,200)
+                raise TimeoutError('injected lost acknowledgement')
+            return original(req,**kwargs)
+        config={'name':'nexus-cert-lost-ack','config_xml':'<project><disabled>true</disabled><builders/></project>'}
+        with patch.dict(os.environ,self.env),patch('nexus_lifecycle._open',side_effect=lose_ack):
+            result=jenkins_create(config)
+            self.assertTrue(result['verified']);self.assertFalse(result['created'])
+            with self.assertRaisesRegex(IntegrationError,'rollback_not_authorized'):
+                jenkins_rollback(result)
+        # The enclosing ephemeral server and its volumes are removed by class cleanup.
+
 if __name__=='__main__': unittest.main(verbosity=2)
