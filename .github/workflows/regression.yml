@@ -21,3 +21,5 @@ jobs:
           python-version: '3.11'
       - name: Run fail-closed regression tests
         run: python -m unittest discover -v -p 'test_*.py'
+      - name: Real isolated authenticated Jenkins lifecycle
+        run: PYTHONPATH=. python ci/test_real_jenkins.py

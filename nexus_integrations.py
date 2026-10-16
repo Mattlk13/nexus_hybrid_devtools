@@ -35,7 +35,7 @@ def _json_request(url, *, method="GET", headers=None, payload=None, timeout=15):
                 raise IntegrationError("invalid_response_schema")
             return response.status, value
     except error.HTTPError as exc:
-        code = {401: "authentication_failed", 403: "permission_denied", 409: "duplicate_conflict"}.get(exc.code, "remote_http_error")
+        code = {401: "authentication_failed", 403: "permission_denied", 409: "duplicate_conflict", 404: "not_found"}.get(exc.code, "remote_http_error")
         raise IntegrationError(code) from exc
     except (error.URLError, ValueError, TimeoutError) as exc:
         raise IntegrationError("remote_request_failed") from exc
