@@ -38,3 +38,9 @@ Live Sentry/Jenkins acceptance is BLOCKED: required environment configuration ab
 `python -m unittest discover -v -p 'test_*.py'`
 
 GitHub Actions runs on the PR branch with contents:read and a bounded job timeout. Review current-head Actions results; prior passing commits are not substitutes for current-head evidence. No tests against live Sentry/Jenkins or a production environment were executed.
+
+## Expanded real Jenkins failure acceptance — 2026-10-17 UTC
+
+All five isolated Jenkins tests pass in 17.885 seconds on Podman. Added actual read-only rollback denial plus provider readback confirming the job remains, followed by successful admin cleanup. Added injected lost-delete-ack after real deletion: the adapter fails closed, and a subsequent readback verifies absence. This is transport fault injection around a real provider operation, not a naturally occurring provider outage. Existing create/concurrency/authentication tests also pass. Ephemeral server cleanup completed.
+
+Pages documentation preview deployment 8b34ce12-d9b4-481a-9343-cf29096cf6a5 passed on documentation commit 2bc1509. Current-head regression runs must pass after this test update.

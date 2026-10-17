@@ -84,4 +84,44 @@ class RealJenkinsTests(unittest.TestCase):
                 jenkins_rollback(result)
         # The enclosing ephemeral server and its volumes are removed by class cleanup.
 
+
+    def test_failed_rollback_preserves_job_and_recovers(self):
+        config={'name':'nexus-cert-denied-rollback','config_xml':'<project><disabled>true</disabled><builders/></project>'}
+        with patch.dict(os.environ,self.env):
+            receipt=jenkins_create(config)
+            try:
+                with patch.dict(os.environ,{'NEXUS_JENKINS_USER':'cert-reader','NEXUS_JENKINS_TOKEN':self.tokens['cert-reader']}):
+                    with self.assertRaisesRegex(IntegrationError,'permission_denied'):
+                        jenkins_rollback(receipt)
+                # Verify the denial did not delete or replace the actual fixture.
+                self.assertTrue(jenkins_create(config)['duplicate'])
+            finally:
+                self.assertTrue(jenkins_rollback(receipt)['verified'])
+            self.assertTrue(jenkins_rollback(receipt)['duplicate'])
+
+    def test_lost_delete_ack_requires_absence_readback(self):
+        import nexus_lifecycle
+        original=nexus_lifecycle._open
+        def lose_ack(req,**kwargs):
+            if req.get_method()=='POST' and req.full_url.endswith('/doDelete'):
+                try:
+                    with original(req,**kwargs) as response:
+                        response.read()
+                except IntegrationError as exc:
+                    if str(exc)!='redirect_rejected': raise
+                raise TimeoutError('injected lost delete acknowledgement')
+            return original(req,**kwargs)
+        config={'name':'nexus-cert-delete-ack','config_xml':'<project><disabled>true</disabled><builders/></project>'}
+        with patch.dict(os.environ,self.env):
+            receipt=jenkins_create(config)
+            try:
+                with patch('nexus_lifecycle._open',side_effect=lose_ack):
+                    with self.assertRaisesRegex(IntegrationError,'remote_request_failed'):
+                        jenkins_rollback(receipt)
+                result=jenkins_rollback(receipt)
+                self.assertTrue(result['verified'])
+                self.assertTrue(result['duplicate'])
+            finally:
+                jenkins_rollback(receipt)
+
 if __name__=='__main__': unittest.main(verbosity=2)
