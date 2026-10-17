@@ -1,0 +1,27 @@
+name: NEXUS regression tests
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - fix/no-fabricated-success-20261016
+permissions:
+  contents: read
+concurrency:
+  group: regression-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify documentation freshness
+        run: python ci/build_docs.py --check
+      - name: Run fail-closed regression tests
+        run: python -m unittest discover -v -p 'test_*.py'
+      - name: Real isolated authenticated Jenkins lifecycle
+        run: PYTHONPATH=. python ci/test_real_jenkins.py
