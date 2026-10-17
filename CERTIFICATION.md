@@ -1,3 +1,13 @@
+# Current certification status — 2026-10-17 UTC
+
+Production HOLD. DCO passes on all five NEXUS draft PRs. Devtools signed head 936db0b passed Actions runs 38992499274 and 38992502685, including real Jenkins acceptance. A later documentation commit must receive its own current-head checks.
+
+Actual Nexus2 staging deployment and rollback passed run 38993772022. Actual four-width browser journeys pass. New platform text contrast and keyboard focus defects are fixed in Nexus2 PR49 and covered by deployed browser evidence in the accessibility PR. Full manual accessibility review remains open.
+
+The Node semantic-release dependency blocker was removed by replacing that preview integration with pinned Python Semantic Release. Candidate dependency audits pass without suppressions. Existing default-branch alerts await approved merge and rescan; none were dismissed.
+
+Hosted Sentry credentials and provider-specific cloud test resources remain absent. Full live permission/timeout/rollback-failure coverage, release publication and irreversible notification mark-read acceptance remain open. Documentation below retains historical results; historical queued/blocked statements do not supersede this dated status.
+
 # NEXUS resumed certification — 2026-10-16
 
 Decision: **HOLD**. No production deployment, merge, release publication or service purchase.
