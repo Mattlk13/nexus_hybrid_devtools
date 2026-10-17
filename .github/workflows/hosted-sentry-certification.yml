@@ -1,0 +1,37 @@
+name: Hosted Sentry certification gate
+on:
+  pull_request:
+  push:
+    branches: [fix/no-fabricated-success-20261016]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hosted-sentry-certification
+  cancel-in-progress: false
+jobs:
+  hosted-sentry:
+    # Secrets are used only for the owner's branch, never untrusted fork code.
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: nexus-certification
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require isolated configuration and real provider acceptance
+        env:
+          NEXUS_SENTRY_TOKEN: ${{ secrets.NEXUS_SENTRY_TOKEN }}
+          NEXUS_SENTRY_ORG: ${{ secrets.NEXUS_SENTRY_ORG }}
+          NEXUS_SENTRY_TEAM: ${{ secrets.NEXUS_SENTRY_TEAM }}
+          NEXUS_SENTRY_READONLY_TOKEN: ${{ secrets.NEXUS_SENTRY_READONLY_TOKEN }}
+          NEXUS_SENTRY_CERTIFICATION_ORG: ${{ vars.NEXUS_SENTRY_CERTIFICATION_ORG }}
+        run: python ci/run_sentry_acceptance.py
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: hosted-sentry-acceptance
+          path: evidence/sentry-acceptance.json
+          retention-days: 14

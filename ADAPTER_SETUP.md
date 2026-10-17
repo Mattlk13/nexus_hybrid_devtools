@@ -19,3 +19,11 @@ External adapters require HTTPS, bounded timeouts and response sizes, and reject
 ## Documentation preview
 
 The existing Pages project expects the public directory with no build command. Run python ci/build_docs.py after changing these documents; commit the generated public files. CI runs python ci/build_docs.py --check. Only fixed, reviewed documentation sources are rendered; environment variables and credentials are never read. PR pushes create preview deployments; production remains on HOLD.
+
+## Required hosted certification environment
+
+The dedicated Hosted Sentry certification gate uses the nexus-certification GitHub environment. Configure NEXUS_SENTRY_TOKEN, NEXUS_SENTRY_ORG, NEXUS_SENTRY_TEAM and NEXUS_SENTRY_READONLY_TOKEN as environment secrets. Configure NEXUS_SENTRY_CERTIFICATION_ORG as an environment variable equal to the isolated organization slug. This explicit confirmation must match the token target; do not configure a production organization.
+
+The gate exits BLOCKED before any provider call when configuration is missing or the isolated organization confirmation differs. A skipped test cannot pass this gate. It uploads evidence/sentry-acceptance.json with counts and missing variable names only; credentials and exception details are not emitted. Once configuration is complete, rerun the failed hosted certification workflow. The workflow is serialized and does not cancel an active cleanup when a newer commit arrives.
+
+Sentry sign-in was offered on 2026-10-17 UTC and declined. No Sentry account, organization or token was created. Regression success remains distinct from this required hosted acceptance result.
